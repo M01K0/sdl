@@ -66,10 +66,10 @@ RPI_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
     int ret;
     VC_RECT_T dst_rect;
     Uint32 dummy;
-        
+
     SDL_assert(surface->format->format == SDL_PIXELFORMAT_ARGB8888);
     SDL_assert(surface->pitch == surface->w * 4);
-    
+
     cursor = (SDL_Cursor *) SDL_calloc(1, sizeof(*cursor));
     if (cursor == NULL) {
         SDL_OutOfMemory();
@@ -86,12 +86,12 @@ RPI_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
     curdata->hot_y = hot_y;
     curdata->w = surface->w;
     curdata->h = surface->h;
-    
+
     /* This usage is inspired by Wayland/Weston RPI code, how they figured this out is anyone's guess */
     curdata->resource = vc_dispmanx_resource_create(VC_IMAGE_ARGB8888, surface->w | (surface->pitch << 16), surface->h | (surface->h << 16), &dummy);
     SDL_assert(curdata->resource);
     vc_dispmanx_rect_set(&dst_rect, 0, 0, curdata->w, curdata->h);
-    /* A note from Weston: 
+    /* A note from Weston:
      * vc_dispmanx_resource_write_data() ignores ifmt,
      * rect.x, rect.width, and uses stride only for computing
      * the size of the transfer as rect.height * stride.
@@ -99,9 +99,9 @@ RPI_CreateCursor(SDL_Surface * surface, int hot_x, int hot_y)
      */
     ret = vc_dispmanx_resource_write_data(curdata->resource, VC_IMAGE_ARGB8888, surface->pitch, surface->pixels, &dst_rect);
     SDL_assert (ret == DISPMANX_SUCCESS);
-    
+
     cursor->driverdata = curdata;
-    
+
     return cursor;
 
 }
@@ -125,7 +125,7 @@ RPI_ShowCursor(SDL_Cursor * cursor)
     if (mouse == NULL) {
         return -1;
     }
-    
+
     if (cursor == NULL) {
         /* FIXME: We hide the current mouse's cursor, what we actually need is *_HideCursor */
 
@@ -143,37 +143,40 @@ RPI_ShowCursor(SDL_Cursor * cursor)
         }
         return 0;
     }
-    
+
     curdata = (RPI_CursorData *) cursor->driverdata;
     if (curdata == NULL) {
         return -1;
     }
-    
+
     if (mouse->focus == NULL) {
         return -1;
     }
-    
+
     display = SDL_GetDisplayForWindow(mouse->focus);
     if (display == NULL) {
         return -1;
     }
-    
+
     data = (SDL_DisplayData*) display->driverdata;
     if (data == NULL) {
         return -1;
     }
-    
+
     if (curdata->element == DISPMANX_NO_HANDLE) {
         vc_dispmanx_rect_set(&src_rect, 0, 0, curdata->w << 16, curdata->h << 16);
         vc_dispmanx_rect_set(&dst_rect, mouse->x, mouse->y, curdata->w, curdata->h);
-        
+
         update = vc_dispmanx_update_start(10);
         SDL_assert(update);
 
         env = SDL_GetHint(SDL_HINT_RPI_VIDEO_LAYER);
         if (env) {
-            layer = SDL_atoi(env) + 1;
+            layer = SDL_atoi(env) + 2; // Add a layer so we can stick the OMX player between
         }
+
+        dst_rect.x = mouse->x - curdata->hot_x;
+        dst_rect.y = mouse->y - curdata->hot_y;
 
         curdata->element = vc_dispmanx_element_add(update,
                                                     data->dispman_display,
@@ -189,7 +192,7 @@ RPI_ShowCursor(SDL_Cursor * cursor)
         ret = vc_dispmanx_update_submit_sync(update);
         SDL_assert(ret == DISPMANX_SUCCESS);
     }
-    
+
     return 0;
 }
 
@@ -200,10 +203,10 @@ RPI_FreeCursor(SDL_Cursor * cursor)
     int ret;
     DISPMANX_UPDATE_HANDLE_T update;
     RPI_CursorData *curdata;
-    
+
     if (cursor != NULL) {
         curdata = (RPI_CursorData *) cursor->driverdata;
-        
+
         if (curdata != NULL) {
             if (curdata->element != DISPMANX_NO_HANDLE) {
                 update = vc_dispmanx_update_start(10);
@@ -213,12 +216,12 @@ RPI_FreeCursor(SDL_Cursor * cursor)
                 ret = vc_dispmanx_update_submit_sync(update);
                 SDL_assert(ret == DISPMANX_SUCCESS);
             }
-            
+
             if (curdata->resource != DISPMANX_NO_HANDLE) {
                 ret = vc_dispmanx_resource_delete(curdata->resource);
                 SDL_assert(ret == DISPMANX_SUCCESS);
             }
-        
+
             SDL_free(cursor->driverdata);
         }
         SDL_free(cursor);
@@ -242,7 +245,7 @@ RPI_WarpMouseGlobal(int x, int y)
     VC_RECT_T dst_rect;
     VC_RECT_T src_rect;
     SDL_Mouse *mouse = SDL_GetMouse();
-    
+
     if (mouse == NULL || mouse->cur_cursor == NULL || mouse->cur_cursor->driverdata == NULL) {
         return 0;
     }
@@ -264,8 +267,8 @@ RPI_WarpMouseGlobal(int x, int y)
     src_rect.y = 0;
     src_rect.width  = curdata->w << 16;
     src_rect.height = curdata->h << 16;
-    dst_rect.x = x;
-    dst_rect.y = y;
+    dst_rect.x = x - curdata->hot_x;
+    dst_rect.y = y - curdata->hot_y;
     dst_rect.width  = curdata->w;
     dst_rect.height = curdata->h;
 
@@ -301,7 +304,7 @@ RPI_WarpMouseGlobalGraphicOnly(int x, int y)
     VC_RECT_T dst_rect;
     VC_RECT_T src_rect;
     SDL_Mouse *mouse = SDL_GetMouse();
-    
+
     if (mouse == NULL || mouse->cur_cursor == NULL || mouse->cur_cursor->driverdata == NULL) {
         return 0;
     }
@@ -320,8 +323,8 @@ RPI_WarpMouseGlobalGraphicOnly(int x, int y)
     src_rect.y = 0;
     src_rect.width  = curdata->w << 16;
     src_rect.height = curdata->h << 16;
-    dst_rect.x = x;
-    dst_rect.y = y;
+    dst_rect.x = x - curdata->hot_x;
+    dst_rect.y = y - curdata->hot_y;
     dst_rect.width  = curdata->w;
     dst_rect.height = curdata->h;
 
@@ -350,7 +353,7 @@ RPI_WarpMouseGlobalGraphicOnly(int x, int y)
 void
 RPI_InitMouse(_THIS)
 {
-    /* FIXME: Using UDEV it should be possible to scan all mice 
+    /* FIXME: Using UDEV it should be possible to scan all mice
      * but there's no point in doing so as there's no multimice support...yet!
      */
     SDL_Mouse *mouse = SDL_GetMouse();
@@ -368,7 +371,7 @@ RPI_InitMouse(_THIS)
 void
 RPI_QuitMouse(_THIS)
 {
-    
+
 }
 
 /* This is called when a mouse motion event occurs */
@@ -376,7 +379,7 @@ static void
 RPI_MoveCursor(SDL_Cursor * cursor)
 {
     SDL_Mouse *mouse = SDL_GetMouse();
-    /* We must NOT call SDL_SendMouseMotion() on the next call or we will enter recursivity, 
+    /* We must NOT call SDL_SendMouseMotion() on the next call or we will enter recursivity,
      * so we create a version of WarpMouseGlobal without it. */
     RPI_WarpMouseGlobalGraphicOnly(mouse->x, mouse->y);
 }
