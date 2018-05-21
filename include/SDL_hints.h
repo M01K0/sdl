@@ -861,6 +861,13 @@ extern "C" {
 #define SDL_HINT_VIDEO_DOUBLE_BUFFER      "SDL_VIDEO_DOUBLE_BUFFER"
 
 /**
+ * \brief Enable triple buffering for OpenGL in MACOS.
+ *
+ * Enable the use of triple buffering in MACOS OpenGL contexts.
+ */
+#define SDL_HINT_MACOS_TRIPLE_BUFFER      "SDL_MACOS_TRIPLE_BUFFER"
+
+/**
  * \brief Initialize RPI video layer with alpha enabled.
  *
  * Under most circumstances one would want the background to be black so

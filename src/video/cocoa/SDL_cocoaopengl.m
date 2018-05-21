@@ -244,7 +244,7 @@ Cocoa_GL_CreateContext(_THIS, SDL_Window * window)
         attr[i++] = NSOpenGLPFANoRecovery;
     }
 
-    if (!SDL_GetHintBoolean(SDL_HINT_VIDEO_DOUBLE_BUFFER, SDL_TRUE)) {
+    if (SDL_GetHintBoolean(SDL_HINT_MACOS_TRIPLE_BUFFER, SDL_FALSE)) {
         attr[i++] = NSOpenGLPFATripleBuffer;
     }
 
