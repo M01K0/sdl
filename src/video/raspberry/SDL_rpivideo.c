@@ -249,19 +249,19 @@ RPI_CreateWindow(_THIS, SDL_Window * window)
     VC_RECT_T dst_rect;
     VC_RECT_T src_rect;
     VC_DISPMANX_ALPHA_T         dispman_alpha;
+    VC_DISPMANX_ALPHA_T         *dispman_alpha_handle;
     DISPMANX_UPDATE_HANDLE_T dispman_update;
     uint32_t layer = SDL_RPI_VIDEOLAYER;
     const char *env;
 
-    /* Disable alpha, otherwise the app looks composed with whatever dispman is showing (X11, console,etc) */
+    dispman_alpha_handle = NULL;
+
+    /* Disable alpha if desired, otherwise the app looks composed with whatever dispman is showing (X11, console,etc) */
    if (SDL_GetHintBoolean(SDL_HINT_RPI_VIDEO_ALPHA, SDL_FALSE)) {
         dispman_alpha.flags = DISPMANX_FLAGS_ALPHA_FIXED_ALL_PIXELS;
         dispman_alpha.opacity = 0xFF;
         dispman_alpha.mask = 0;
-   } else {
-       dispman_alpha.flags = DISPMANX_FLAGS_ALPHA_FROM_SOURCE;
-       dispman_alpha.opacity = 0;
-       dispman_alpha.mask = 0;
+        dispman_alpha_handle = &dispman_alpha;
    }
 
     /* Allocate window internal data */
@@ -303,7 +303,7 @@ RPI_CreateWindow(_THIS, SDL_Window * window)
                                                              0 /*src*/,
                                                              &src_rect,
                                                              DISPMANX_PROTECTION_NONE,
-                                                             &dispman_alpha /*alpha*/,
+                                                             dispman_alpha_handle /*alpha*/,
                                                              0 /*clamp*/,
                                                              0 /*transform*/);
     wdata->dispman_window.width = window->w;
